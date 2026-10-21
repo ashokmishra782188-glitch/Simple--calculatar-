@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Calculator</title>
+<style>
+:root{--bg:#101827;--panel:#172337;--panel2:#22324a;--text:#eef4ff;--muted:#9fb0c8;--accent:#71a7ff;--danger:#ff8585;--green:#71d6ad}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;padding:18px;background:radial-gradient(circle at top,#263e60,#0c1320 65%);font-family:Arial,sans-serif;color:var(--text);display:flex;align-items:center;justify-content:center}
+.app{width:min(100%,420px);background:rgba(23,35,55,.97);border:1px solid #354763;border-radius:24px;padding:20px;box-shadow:0 18px 55px #0006}
+h1{font-size:23px;text-align:center;margin:0 0 5px}
+.subtitle{text-align:center;color:var(--muted);font-size:13px;margin:0 0 18px}
+.display{width:100%;padding:18px 12px;background:#0c1523;border:1px solid #354763;border-radius:14px;color:var(--text);font-size:32px;text-align:right;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+button{border:0;border-radius:11px;padding:15px 4px;background:var(--panel2);color:var(--text);font-size:17px;font-weight:700;cursor:pointer;touch-action:manipulation}
+button:active{transform:scale(.98)}
+button.op{background:#30496b;color:#d9e8ff}
+button.warn{background:#5c303c;color:#ffe1e1}
+button.equal{background:var(--accent);color:#071326}
+button.wide{grid-column:span 2}
+.rule{height:1px;background:#34445c;margin:18px 0}
+.vault-open{width:100%;background:#244c45;color:#d9fff0;padding:14px}
+.small{font-size:12px;color:var(--muted);line-height:1.5}
+.panel{margin-top:14px;padding:14px;background:#0d1726;border:1px solid #354763;border-radius:14px}
+.panel h2{font-size:18px;margin:0 0 10px}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 5px}
+input[type=password],input[type=text]{width:100%;padding:12px;border-radius:9px;border:1px solid #425672;background:#172337;color:var(--text);font-size:16px}
+.row{display:flex;gap:8px;margin-top:10px}
+.row button{flex:1;font-size:14px;padding:12px}
+.file-label{display:block;text-align:center;background:#30496b;color:white;border-radius:10px;padding:13px;cursor:pointer;margin-top:10px;font-weight:bold}
+input[type=file]{position:absolute;left:-9999px}
+.notice{font-size:12px;line-height:1.5;color:#ffdba0;background:#3c3020;padding:10px;border-radius:9px;margin-top:12px}
+.item{padding:9px;border-bottom:1px solid #29384d;overflow-wrap:anywhere;font-size:13px}
+.item:last-child{border-bottom:0}
+.hidden{display:none!important}
+.status{font-size:13px;min-height:18px;color:var(--green);margin-top:8px}
+footer{text-align:center;color:var(--muted);font-size:11px;margin-top:16px}
+</style>
+</head>
+<body>
+<main class="app">
+  <h1>Smart Calculator</h1>
+  <p class="subtitle">Calculator + Private Vault Demo</p>
+
+  <input id="display" class="display" value="0" aria-label="Calculator display" readonly>
+  <div class="grid">
+    <button class="warn" style="grid-column:span 2" onclick="allClear()">C</button>
+    <button class="op" onclick="backspace()" aria-label="Delete last digit">⌫</button>
+    <button class="op" onclick="choose('/')">÷</button>
+
+    <button class="op" onclick="square()">x²</button>
+    <button class="op" onclick="cube()">x³</button>
+    <button class="op" onclick="squareRoot()">√</button>
+    <button class="op" onclick="choose('*')">×</button>
+
+    <button onclick="digit('7')">7</button><button onclick="digit('8')">8</button><button onclick="digit('9')">9</button>
+    <button class="op" onclick="choose('-')">−</button>
+
+    <button onclick="digit('4')">4</button><button onclick="digit('5')">5</button><button onclick="digit('6')">6</button>
+    <button class="op" onclick="choose('+')">+</button>
+
+    <button onclick="digit('1')">1</button><button onclick="digit('2')">2</button><button onclick="digit('3')">3</button>
+    <button class="equal" onclick="calculate()">=</button>
+
+    <button class="wide" onclick="digit('0')">0</button>
+    <button onclick="decimal()">.</button>
+    <button class="op" onclick="percent()">%</button>
+  </div>
+  <div id="calcStatus" class="status" aria-live="polite"></div>
+
+  <div class="rule"></div>
+  <button class="vault-open" style="width:100%" onclick="showVault()">🔒 Open Private Vault</button>
+
+  <section id="vault" class="panel hidden">
+    <h2>Private Vault</h2>
+    <p class="small">Create a vault password for this browser demo. Use a password you do not use elsewhere.</p>
+    <div id="setup">
+      <label for="newPassword">Set password (at least 8 characters)</label>
+      <input id="newPassword" type="password" autocomplete="new-password" placeholder="Create password">
+      <label for="confirmPassword">Confirm password</label>
+      <input id="confirmPassword" type="password" autocomplete="new-password" placeholder="Repeat password">
+      <div class="row"><button onclick="setPassword()">Create Vault</button><button onclick="hideVault()">Close</button></div>
+    </div>
+
+    <div id="login" class="hidden">
+      <label for="vaultPassword">Vault password</label>
+      <input id="vaultPassword" type="password" autocomplete="current-password" placeholder="Enter password">
+      <div class="row"><button onclick="unlockVault()">Unlock</button><button onclick="hideVault()">Close</button></div>
+    </div>
+
+    <div id="vaultContent" class="hidden">
+      <p class="small">Choose media or documents from your phone's file picker. Files are kept in this page's temporary memory only; refresh or close the page and they will be cleared.</p>
+      <label class="file-label" for="filePicker">＋ Select photos, videos or files</label>
+      <input id="filePicker" type="file" accept="image/*,video/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx" multiple onchange="importFiles(event)">
+      <div class="row"><button onclick="lockVault()">Lock Vault</button><button onclick="clearFiles()">Remove All Files</button></div>
+      <div id="fileList" class="panel" style="padding:8px;margin-top:12px"><p class="small">No files selected.</p></div>
+    </div>
+    <div id="vaultStatus" class="status" aria-live="polite"></div>
+    <div class="notice"><strong>Privacy limitation:</strong> This is a website demo, not a secure vault. The password gate does not encrypt the files, and selected files are not hidden from your phone's gallery. Do not import sensitive or private files here. For genuine protection, use a trusted secure vault app or build a native Android app with encrypted private storage.</div>
+  </section>
+
+  <footer>First project • HTML, CSS and JavaScript</footer>
+</main>
+<script>
+const display = document.getElementById('display');
+const calcStatus = document.getElementById('calcStatus');
+let current = '0', first = null, operator = null, fresh = true;
+
+function update(){ display.value = current; }
+function digit(n){
+  calcStatus.textContent = '';
+  if(fresh || current === 'Error'){ current=n; fresh=false; }
+  else if(current.replace('-','').replace('.','').length < 15){ current = current === '0' ? n : current+n; }
+  update();
+}
+function decimal(){
+  if(fresh || current==='Error'){current='0.';fresh=false;}
+  else if(!current.includes('.')) current+='.';
+  update();
+}
+function clearEntry(){current='0';fresh=true;calcStatus.textContent='Current entry cleared';update();}
+function allClear(){current='0';first=null;operator=null;fresh=true;calcStatus.textContent='Calculator reset';update();}
+function backspace(){
+  if(fresh || current==='Error'){clearEntry();return;}
+  current=current.length>1?current.slice(0,-1):'0';
+  if(current==='-') current='0';
+  update();
+}
+function choose(op){if(current==='Error')return;first=Number(current);operator=op;fresh=true;calcStatus.textContent='';}
+function showNumber(n){
+  if(!Number.isFinite(n)){current='Error';}
+  else current=String(Number(n.toPrecision(12)));
+  fresh=true;update();
+}
+function calculate(){
+  if(operator===null || first===null || current==='Error') return;
+  const a=first,b=Number(current); let result;
+  if(operator==='+')result=a+b;
+  if(operator==='-')result=a-b;
+  if(operator==='*')result=a*b;
+  if(operator==='/'){
+    if(b===0){current='Error';update();first=null;operator=null;fresh=true;return;}
+    result=a/b;
+  }
+  showNumber(result);first=null;operator=null;
+}
+function square(){if(current==='Error')return;const n=Number(current);showNumber(n*n);first=null;operator=null;}
+function cube(){if(current==='Error')return;const n=Number(current);showNumber(n*n*n);first=null;operator=null;}
+function squareRoot(){
+  if(current==='Error')return;const n=Number(current);
+  if(n<0){current='Error';update();fresh=true;return;}
+  showNumber(Math.sqrt(n));first=null;operator=null;
+}
+function percent(){if(current==='Error')return;showNumber(Number(current)/100);first=null;operator=null;}
+
+// Demo vault: password gate only; it does NOT encrypt files or persist them.
+const encoder = new TextEncoder();
+let passwordHash = null;
+let vaultUnlocked = false;
+let selectedFiles = [];
+let objectUrls = [];
+
+async function hashPassword(password){
+  const bytes = await crypto.subtle.digest('SHA-256', encoder.encode(password));
+  return Array.from(new Uint8Array(bytes), b=>b.toString(16).padStart(2,'0')).join('');
+}
+function showVault(){
+  document.getElementById('vault').classList.remove('hidden');
+  document.getElementById('vaultStatus').textContent='';
+  refreshVaultScreen();
+}
+function hideVault(){lockVault();document.getElementById('vault').classList.add('hidden');}
+function refreshVaultScreen(){
+  document.getElementById('setup').classList.toggle('hidden',!!passwordHash);
+  document.getElementById('login').classList.toggle('hidden',!passwordHash || vaultUnlocked);
+  document.getElementById('vaultContent').classList.toggle('hidden',!vaultUnlocked);
+}
+async function setPassword(){
+  const p=document.getElementById('newPassword').value;
+  const c=document.getElementById('confirmPassword').value;
+  const status=document.getElementById('vaultStatus');
+  if(!window.crypto || !crypto.subtle){status.textContent='Password setup requires a secure browser context (HTTPS or localhost).';return;}
+  if(p.length<8){status.textContent='Use at least 8 characters.';return;}
+  if(p!==c){status.textContent='Passwords do not match.';return;}
+  passwordHash=await hashPassword(p);
+  document.getElementById('newPassword').value='';
+  document.getElementById('confirmPassword').value='';
+  status.textContent='Demo password set for this page session.';
+  refreshVaultScreen();
+}
+async function unlockVault(){
+  const p=document.getElementById('vaultPassword').value;
+  const status=document.getElementById('vaultStatus');
+  if(!passwordHash){status.textContent='Create a password first.';return;}
+  if(await hashPassword(p)===passwordHash){
+    vaultUnlocked=true;
+    document.getElementById('vaultPassword').value='';
+    status.textContent='Vault demo unlocked.';
+    refreshVaultScreen();
+    renderFiles();
+  }else status.textContent='Incorrect password.';
+}
+function lockVault(){
+  vaultUnlocked=false;
+  document.getElementById('vaultPassword').value='';
+  refreshVaultScreen();
+}
+function importFiles(event){
+  if(!vaultUnlocked)return;
+  const incoming=Array.from(event.target.files||[]);
+  selectedFiles.push(...incoming);
+  renderFiles();
+  document.getElementById('vaultStatus').textContent=incoming.length+' file(s) selected in temporary page memory.';
+  event.target.value='';
+}
+function renderFiles(){
+  const list=document.getElementById('fileList');
+  objectUrls.forEach(URL.revokeObjectURL);
+  objectUrls=[];
+  list.replaceChildren();
+  if(!selectedFiles.length){const p=document.createElement('p');p.className='small';p.textContent='No files selected.';list.appendChild(p);return;}
+  selectedFiles.forEach((file,index)=>{
+    const row=document.createElement('div');row.className='item';
+    const name=document.createElement('div');name.textContent=file.name+' ('+formatBytes(file.size)+')';
+    row.appendChild(name);
+    if(file.type.startsWith('image/')||file.type.startsWith('video/')){
+      const url=URL.createObjectURL(file);objectUrls.push(url);
+      const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener';link.textContent=file.type.startsWith('image/')?'Preview image':'Open video';link.style.color='#9fc4ff';link.style.display='inline-block';link.style.marginTop='5px';row.appendChild(link);
+    }
+    const remove=document.createElement('button');remove.textContent='Remove';remove.style.padding='6px 10px';remove.style.fontSize='12px';remove.style.marginTop='6px';remove.onclick=()=>{selectedFiles.splice(index,1);renderFiles();};
+    row.appendChild(remove);list.appendChild(row);
+  });
+}
+function formatBytes(bytes){
+  if(bytes<1024)return bytes+' B';
+  if(bytes<1024*1024)return (bytes/1024).toFixed(1)+' KB';
+  return (bytes/(1024*1024)).toFixed(1)+' MB';
+}
+function clearFiles(){
+  selectedFiles=[];
+  objectUrls.forEach(URL.revokeObjectURL);objectUrls=[];
+  renderFiles();
+  document.getElementById('vaultStatus').textContent='Selected files removed from this page.';
+}
+</script>
+</body>
+</html>
